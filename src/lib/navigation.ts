@@ -7,6 +7,7 @@ import {
   ListChecks,
   PiggyBank,
   Receipt,
+  ShieldCheck,
   Tags,
   Upload,
   Users,
@@ -39,6 +40,7 @@ export const navItems: NavItem[] = [
   { href: '/regles', label: 'Règles', icon: ListChecks },
   { href: '/statistiques', label: 'Statistiques', icon: BarChart3 },
   { href: '/foyer', label: 'Foyer', icon: Users },
+  { href: '/confidentialite', label: 'Confidentialité', icon: ShieldCheck },
 ]
 
 /**

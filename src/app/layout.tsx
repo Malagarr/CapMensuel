@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 
+import { RegisterServiceWorker } from '@/components/register-service-worker'
 import { ThemeProvider, themeInitScript } from '@/components/theme-provider'
 
 import './globals.css'
@@ -21,6 +22,12 @@ export const metadata: Metadata = {
   applicationName: 'Budget Foyer',
   // Les pages d'une application financière ne doivent jamais être indexées.
   robots: { index: false, follow: false },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Budget Foyer',
+  },
 }
 
 export const viewport: Viewport = {
@@ -50,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Aller au contenu principal
         </a>
         <ThemeProvider>{children}</ThemeProvider>
+        <RegisterServiceWorker />
       </body>
     </html>
   )

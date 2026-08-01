@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   '/inscription',
   '/mot-de-passe-oublie',
   '/reinitialiser-mot-de-passe',
+  '/offline',
 ]
 
 /** Préfixes techniques à ne jamais intercepter. */

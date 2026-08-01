@@ -5,8 +5,57 @@
  * ils s'appliquent ainsi également aux fichiers statiques.
  */
 
+/**
+ * Origine du projet Supabase, pour restreindre `connect-src` à ce seul hôte
+ * plutôt qu'à tout *.supabase.co. Repli sur le joker si la variable n'est pas
+ * encore disponible à ce stade (première installation, avant configuration).
+ */
+function supabaseOrigin() {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').origin
+  } catch {
+    return 'https://*.supabase.co'
+  }
+}
+
+/**
+ * Content-Security-Policy (§18).
+ *
+ * `script-src` et `style-src` gardent 'unsafe-inline' : l'application insère
+ * un court script inline (choix du thème avant premier rendu, pour éviter le
+ * flash blanc) sans infrastructure de nonce, et Tailwind ainsi que les styles
+ * inline générés par React nécessitent 'unsafe-inline' sur style-src. Le
+ * reste de la politique reste strict : aucune ressource tierce, aucun cadrage
+ * par un site externe, connexions réseau limitées à Supabase.
+ *
+ * 'unsafe-eval' n'est ajouté qu'en développement : le serveur de
+ * développement de Next.js évalue ses modules via eval() pour le rechargement
+ * à chaud, ce qu'une CSP stricte bloque silencieusement (React ne plante pas,
+ * mais aucun gestionnaire d'événement ne s'attache : l'application paraît
+ * figée). Le build de production n'utilise jamais eval().
+ */
+function buildCsp() {
+  const supabaseHttp = supabaseOrigin()
+  const supabaseWs = supabaseHttp.replace('https://', 'wss://')
+  const isDev = process.env.NODE_ENV !== 'production'
+
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    `connect-src 'self' ${supabaseHttp} ${supabaseWs}${isDev ? ' ws://localhost:*' : ''}`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ')
+}
+
 /** En-têtes appliqués à toutes les réponses. */
 const securityHeaders = [
+  { key: 'Content-Security-Policy', value: buildCsp() },
   // Empêche le navigateur de « deviner » un type MIME différent de celui annoncé.
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Interdit l'affichage de l'application dans une iframe tierce (clickjacking).

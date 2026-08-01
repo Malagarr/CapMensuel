@@ -25,29 +25,50 @@ Le développement suit les 20 étapes définies dans le cahier des charges.
 | 9-10 | Import CSV et Excel | ✅ terminé (assistant en 5 écrans, CSV et XLSX) |
 | 11 | Détection des doublons | ✅ terminé |
 | 12 | Moteur de catégorisation | ✅ terminé (dictionnaire de mots-clés, mémoire des corrections, et règles utilisateur sur `/regles` — créer, modifier, désactiver, appliquer aux anciennes opérations) |
-| 13 | Tableau de bord | ✅ terminé |
+| 13 | Tableau de bord | ✅ terminé (vérifié en direct contre Supabase) |
 | 14 | Budgets par catégorie | ✅ terminé |
 | 15 | Prévisions de fin de mois | ✅ terminé |
 | 16 | Statistiques | ✅ terminé |
-| 17 | PWA | ⏳ à venir |
-| 18 | Sécurité et RGPD | ⏳ à venir |
-| 19 | Tests | 🔶 en cours (155 tests unitaires) |
-| 20 | Déploiement | ⏳ à venir |
+| 17 | PWA | ✅ terminé |
+| 18 | Sécurité et RGPD | ✅ terminé |
+| 19 | Tests, données de démo | ✅ terminé (177 tests unitaires, `supabase/seed-demo.sql`) |
+| 20 | Documentation et déploiement | ✅ terminé (guide de déploiement Vercel ci-dessous) |
 
 La navigation complète du §23 (barre latérale sur ordinateur, barre du bas sur
-mobile avec bouton « Ajouter » central, `src/lib/navigation.ts`) est en place
-depuis l'étape 13 et remplace l'ancien en-tête horizontal.
+mobile avec bouton « Ajouter » central) est en place depuis l'étape 13.
 
-### Détail : catégorisation et règles (étape 12)
+Le tableau de bord (reste à vivre, reste disponible, prévision de fin de mois)
+a été vérifié en direct contre une base Supabase réelle avec le jeu de
+données du §4 du cahier des charges (revenus 3 500 €, charges fixes 1 800 €,
+dépenses variables 700 €, dépenses exceptionnelles 200 €, épargne 300 €) :
+les valeurs affichées correspondent exactement à l'exemple attendu
+(reste à vivre 1 700 €, reste disponible 500 €).
 
-- `src/lib/banking/categorize.ts` : hiérarchie de confiance — règle utilisateur
-  (100), commerçant déjà corrigé (95), opération récurrente reconnue (92),
-  libellé déjà rencontré (88), dictionnaire de mots-clés (75). Fonction pure,
-  testée indépendamment de toute base de données.
-- `src/lib/actions/rule.ts` et `src/app/(app)/regles/` : gestion des règles —
-  portée compte ou foyer, priorité, application rétroactive limitée aux
-  opérations **encore sans catégorie** (une opération déjà classée à la main
-  n'est jamais écrasée silencieusement).
+**Catégorisation et règles (§10, §12)** : `src/lib/banking/categorize.ts`
+applique une hiérarchie de confiance — règle utilisateur (100), commerçant
+déjà corrigé (95), opération récurrente reconnue (92), libellé déjà rencontré
+(88), dictionnaire de mots-clés (75) — fonction pure, testée indépendamment de
+toute base de données. `/regles` (`src/lib/actions/rule.ts`,
+`src/app/(app)/regles/`) permet de créer, modifier et désactiver des règles,
+avec une portée compte ou foyer, et de les appliquer aux anciennes opérations :
+seules celles **encore sans catégorie** sont reprises, pour ne jamais écraser
+silencieusement un classement manuel.
+
+**PWA (§17)** : manifeste (`/manifest.webmanifest`), icônes générées à la
+volée (favicon, icône Apple, icônes 192/512 standards et « maskable »),
+service worker (`public/sw.js`, page de secours `/offline`) mis en cache
+uniquement pour les fichiers statiques versionnés de Next — jamais pour les
+pages ou les appels réseau, afin qu'aucune donnée financière périmée ne soit
+jamais servie hors ligne comme si elle était à jour.
+
+**Sécurité et RGPD (§18)** : Content-Security-Policy restrictive (`connect-src`
+limité à l'origine exacte du projet Supabase), page « Confidentialité »
+(`/confidentialite`) avec export complet des données au format JSON et
+suppression de compte (avec confirmation explicite). La suppression a été
+vérifiée par relecture du code et par test du chemin de validation (refus
+d'une confirmation incorrecte) ; le chemin de suppression réelle n'a
+volontairement pas été testé de bout en bout en production faute d'un compte
+jetable disponible — à tester avec un compte de test avant mise en production.
 
 ---
 
@@ -197,6 +218,18 @@ Ouvrez [http://localhost:3000](http://localhost:3000).
 Tant que `.env.local` n'est pas rempli, l'application affiche une page
 « Configuration requise » qui rappelle ces étapes, plutôt qu'une erreur.
 
+### 7. (Optionnel) Charger des données de démonstration
+
+`supabase/seed-demo.sql` remplit un foyer existant avec trois mois
+d'opérations réalistes (salaire, loyer, courses, sorties, épargne...), pour
+voir un tableau de bord parlant sans tout saisir à la main.
+
+Ouvrez le fichier, remplacez `target_owner_email` par l'e-mail du compte
+concerné, puis collez-le dans le SQL Editor Supabase et exécutez-le. Tout est
+isolé dans un compte bancaire dédié (« Compte courant (démo) »), sans toucher
+au reste : le script peut être relancé à volonté, il repart d'un compte de
+démo vide à chaque fois. La fin du fichier indique comment tout supprimer.
+
 ---
 
 ## Commandes disponibles
@@ -224,35 +257,41 @@ Tant que `.env.local` n'est pas rempli, l'application affiche une page
 │   │   ├── (auth)/              Connexion, inscription, mot de passe
 │   │   ├── (app)/               Pages protégées : tableau de bord, comptes,
 │   │   │                        opérations, récurrentes, catégories, règles,
-│   │   │                        budgets, statistiques, foyer, import
+│   │   │                        budgets, statistiques, foyer, import,
+│   │   │                        confidentialité
+│   │   ├── api/export-donnees/  Export JSON des données (§18)
 │   │   ├── auth/                Routes techniques : confirmation, callback
 │   │   ├── bienvenue/           Création ou adhésion à un foyer
 │   │   ├── rejoindre/[code]/    Arrivée sur un lien d'invitation
 │   │   ├── configuration-requise/  Page de premier lancement
+│   │   ├── offline/             Page de secours du service worker (§17)
+│   │   ├── icon.tsx, apple-icon.tsx, icons/  Icônes générées à la volée
+│   │   ├── manifest.ts          Manifeste PWA (§17)
 │   │   ├── layout.tsx           Layout racine, thème, polices
 │   │   └── globals.css          Jetons de design, mode clair et sombre
 │   ├── components/
-│   │   ├── app-sidebar.tsx      Navigation §23, ordinateur
-│   │   ├── app-bottom-nav.tsx   Navigation §23, mobile
 │   │   └── ui/                  Composants réutilisables
 │   ├── lib/
 │   │   ├── actions/              Server Actions (une par domaine métier)
 │   │   ├── banking/               Moteur d'analyse bancaire, pur et testé :
 │   │   │                          normalisation des libellés, dates, montants,
 │   │   │                          détection de colonnes, catégorisation, doublons
-│   │   ├── dashboard.ts          Reste à vivre, prévision de fin de mois, statut
-│   │   │                        de budget par catégorie — pur et testé
-│   │   ├── navigation.ts        Liste des pages, partagée sidebar/barre du bas
-│   │   ├── supabase/             Clients navigateur, serveur et middleware
+│   │   ├── supabase/             Clients navigateur, serveur, middleware et
+│   │   │                         admin (service_role, §18)
 │   │   ├── validation/           Schémas Zod
+│   │   ├── dashboard.ts          Calculs du tableau de bord (§13-15), pur et testé
+│   │   ├── navigation.ts        Liste des pages, partagée sidebar/barre du bas
 │   │   ├── env.ts                Lecture validée de la configuration
 │   │   ├── format.ts             Montants, dates, pourcentages (français)
 │   │   └── utils.ts              Utilitaires transverses
 │   ├── types/
 │   │   └── database.ts          Types reflétant le schéma SQL
 │   └── middleware.ts            Rafraîchit la session, protège les routes
+├── public/
+│   └── sw.js                    Service worker (§17)
 └── supabase/
-    └── migrations/              Scripts SQL, à exécuter dans l'ordre
+    ├── migrations/              Scripts SQL, à exécuter dans l'ordre
+    └── seed-demo.sql            Données de démonstration, à exécuter à la main
 ```
 
 ---
@@ -284,6 +323,36 @@ l'appareil.
 mois/jour) et le séparateur décimal sont déduits en observant l'ensemble d'une
 colonne, pas une valeur isolée. Le format d'une banque, une fois confirmé, est
 mémorisé pour les imports suivants.
+
+---
+
+## Déploiement (§20)
+
+Aucune étape n'est spécifique à ce projet au-delà d'un déploiement Next.js
+standard sur Vercel :
+
+1. **Importez le dépôt** sur [vercel.com](https://vercel.com) (bouton
+   « Add New… › Project », en choisissant `Malagarr/CapMensuel`). Le
+   framework Next.js est détecté automatiquement.
+2. **Renseignez les variables d'environnement** (Project Settings ›
+   Environment Variables), les mêmes que dans `.env.local` :
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY` (nécessaire à la suppression de compte du
+   §18) et `NEXT_PUBLIC_SITE_URL` (l'URL `https://…` que Vercel attribuera,
+   à mettre à jour après le premier déploiement si vous ne connaissez pas
+   encore le domaine final).
+3. **Mettez à jour Supabase** (Authentication › URL Configuration) : ajoutez
+   l'URL de production à « Site URL » et « Redirect URLs », sinon les liens
+   envoyés par e-mail (confirmation, réinitialisation de mot de passe)
+   redirigeront vers `localhost`.
+4. **Vérifiez la PWA après le premier déploiement** : `/manifest.webmanifest`
+   doit répondre, et un navigateur mobile doit proposer « Ajouter à l'écran
+   d'accueil ». Le service worker (§17) n'a d'effet qu'en HTTPS — Vercel le
+   fournit par défaut, aucune configuration supplémentaire n'est nécessaire.
+
+Le build échoue volontairement si une erreur TypeScript ou ESLint subsiste
+(voir `next.config.mjs`) : un déploiement qui aboutit garantit donc que ces
+deux vérifications sont passées.
 
 ---
 
