@@ -169,13 +169,9 @@ export async function findImportProfileAction(
 
   if (!profile) return null
 
-  // Mise à jour de l'usage en tâche de fond : ne bloque pas la réponse.
-  void supabase
-    .from('import_profiles')
-    .update({ usage_count: profile.usage_count + 1, last_used_at: new Date().toISOString() })
-    .eq('id', profile.id)
-    .then(() => {})
-
+  // usage_count n'est incrémenté que dans commitImportAction, à l'import
+  // réellement validé : le comptabiliser ici aussi le gonflerait à chaque
+  // reconnaissance de format, y compris quand l'utilisateur annule ensuite.
   const dateFormat = profile.date_format
   if (dateFormat !== 'dmy' && dateFormat !== 'mdy' && dateFormat !== 'ymd') return null
 
@@ -355,6 +351,17 @@ export async function commitImportAction(
 
     if (profileValidation.success) {
       const profile = profileValidation.data
+
+      // La case « mémoriser » reste cochée par défaut à chaque import : sans
+      // relire le compteur existant, cet upsert écraserait usage_count à 1 à
+      // chaque fois, au lieu de refléter le nombre réel d'utilisations.
+      const { data: existingProfile } = await supabase
+        .from('import_profiles')
+        .select('usage_count')
+        .eq('household_id', active.household.id)
+        .eq('header_signature', profile.headerSignature)
+        .maybeSingle()
+
       await supabase.from('import_profiles').upsert(
         {
           household_id: active.household.id,
@@ -364,7 +371,7 @@ export async function commitImportAction(
           date_format: profile.dateFormat,
           decimal_separator: profile.decimalSeparator,
           has_debit_credit: profile.hasDebitCredit,
-          usage_count: 1,
+          usage_count: (existingProfile?.usage_count ?? 0) + 1,
           last_used_at: new Date().toISOString(),
         },
         { onConflict: 'household_id,header_signature' },
