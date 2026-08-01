@@ -252,6 +252,54 @@ export function buildImportPreview(options: BuildPreviewOptions): ImportRowPrevi
   })
 }
 
+export type ImportRecap = {
+  total: number
+  nouvelles: number
+  doublons: number
+  aVerifier: number
+  ignorees: number
+}
+
+/**
+ * Regroupe le statut de chaque ligne en quatre catégories lisibles, pour le
+ * récapitulatif affiché juste avant la validation finale (§9 étape 4, §11).
+ *
+ * Le regroupement est mutuellement exclusif : la somme des quatre nombres
+ * vaut toujours le total de lignes.
+ *   - nouvelles  : opération inédite, catégorie reconnue ou proposée
+ *   - à vérifier : opération inédite mais sans catégorie, ou trop proche
+ *                  d'une opération existante pour trancher automatiquement
+ *   - doublons   : identique à une opération déjà enregistrée
+ *   - ignorées   : ligne inexploitable (date ou montant illisible)
+ */
+export function summarizeImportRecap(rows: readonly ImportRowPreview[]): ImportRecap {
+  let nouvelles = 0
+  let doublons = 0
+  let aVerifier = 0
+  let ignorees = 0
+
+  for (const row of rows) {
+    switch (row.status) {
+      case 'recognized':
+      case 'suggested':
+        nouvelles++
+        break
+      case 'unrecognized':
+      case 'similar':
+        aVerifier++
+        break
+      case 'duplicate':
+        doublons++
+        break
+      case 'invalid':
+        ignorees++
+        break
+    }
+  }
+
+  return { total: rows.length, nouvelles, doublons, aVerifier, ignorees }
+}
+
 export type PreviewSummary = {
   total: number
   recognized: number

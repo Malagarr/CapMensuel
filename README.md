@@ -24,14 +24,14 @@ Le développement suit les 20 étapes définies dans le cahier des charges.
 | 8 | Opérations récurrentes | ✅ terminé |
 | 9-10 | Import CSV et Excel | ✅ terminé (assistant en 5 écrans, CSV et XLSX) |
 | 11 | Détection des doublons | ✅ terminé |
-| 12 | Moteur de catégorisation | ✅ terminé |
+| 12 | Moteur de catégorisation | ✅ terminé (dictionnaire de mots-clés, mémoire des corrections, et règles utilisateur sur `/regles` — créer, modifier, désactiver, appliquer aux anciennes opérations) |
 | 13 | Tableau de bord | ✅ terminé (vérifié en direct contre Supabase) |
 | 14 | Budgets par catégorie | ✅ terminé |
 | 15 | Prévisions de fin de mois | ✅ terminé |
 | 16 | Statistiques | ✅ terminé |
 | 17 | PWA | ✅ terminé |
 | 18 | Sécurité et RGPD | ✅ terminé |
-| 19 | Tests, données de démo | ✅ terminé (174 tests unitaires, `supabase/seed-demo.sql`) |
+| 19 | Tests, données de démo | ✅ terminé (177 tests unitaires, `supabase/seed-demo.sql`) |
 | 20 | Documentation et déploiement | ✅ terminé (guide de déploiement Vercel ci-dessous) |
 
 La navigation complète du §23 (barre latérale sur ordinateur, barre du bas sur
@@ -43,6 +43,16 @@ données du §4 du cahier des charges (revenus 3 500 €, charges fixes 1 800 �
 dépenses variables 700 €, dépenses exceptionnelles 200 €, épargne 300 €) :
 les valeurs affichées correspondent exactement à l'exemple attendu
 (reste à vivre 1 700 €, reste disponible 500 €).
+
+**Catégorisation et règles (§10, §12)** : `src/lib/banking/categorize.ts`
+applique une hiérarchie de confiance — règle utilisateur (100), commerçant
+déjà corrigé (95), opération récurrente reconnue (92), libellé déjà rencontré
+(88), dictionnaire de mots-clés (75) — fonction pure, testée indépendamment de
+toute base de données. `/regles` (`src/lib/actions/rule.ts`,
+`src/app/(app)/regles/`) permet de créer, modifier et désactiver des règles,
+avec une portée compte ou foyer, et de les appliquer aux anciennes opérations :
+seules celles **encore sans catégorie** sont reprises, pour ne jamais écraser
+silencieusement un classement manuel.
 
 **PWA (§17)** : manifeste (`/manifest.webmanifest`), icônes générées à la
 volée (favicon, icône Apple, icônes 192/512 standards et « maskable »),
@@ -246,8 +256,9 @@ démo vide à chaque fois. La fin du fichier indique comment tout supprimer.
 │   ├── app/
 │   │   ├── (auth)/              Connexion, inscription, mot de passe
 │   │   ├── (app)/               Pages protégées : tableau de bord, comptes,
-│   │   │                        opérations, récurrentes, catégories, budgets,
-│   │   │                        statistiques, foyer, import, confidentialité
+│   │   │                        opérations, récurrentes, catégories, règles,
+│   │   │                        budgets, statistiques, foyer, import,
+│   │   │                        confidentialité
 │   │   ├── api/export-donnees/  Export JSON des données (§18)
 │   │   ├── auth/                Routes techniques : confirmation, callback
 │   │   ├── bienvenue/           Création ou adhésion à un foyer
@@ -269,6 +280,7 @@ démo vide à chaque fois. La fin du fichier indique comment tout supprimer.
 │   │   │                         admin (service_role, §18)
 │   │   ├── validation/           Schémas Zod
 │   │   ├── dashboard.ts          Calculs du tableau de bord (§13-15), pur et testé
+│   │   ├── navigation.ts        Liste des pages, partagée sidebar/barre du bas
 │   │   ├── env.ts                Lecture validée de la configuration
 │   │   ├── format.ts             Montants, dates, pourcentages (français)
 │   │   └── utils.ts              Utilitaires transverses

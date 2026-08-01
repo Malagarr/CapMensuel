@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   analyzeSheet,
   buildImportPreview,
+  summarizeImportRecap,
   summarizePreview,
 } from '@/lib/banking/import-pipeline'
 import type { CategorizationContext } from '@/lib/banking/categorize'
@@ -247,5 +248,38 @@ describe('summarizePreview', () => {
     expect(summary.duplicates).toBe(1)
     expect(summary.invalid).toBe(1)
     expect(summary.suggested).toBe(1) // EDF, reconnu par mots-clés
+  })
+})
+
+describe('summarizeImportRecap', () => {
+  it('répartit chaque ligne dans une seule des quatre catégories affichées à l’utilisateur', () => {
+    const rows = buildImportPreview({
+      dataRows: [
+        ['12/07/2026', 'CB INTERMARCHE', '45,90', ''], // doublon
+        ['20/07/2026', 'PRELEVEMENT EDF', '89,60', ''], // suggéré -> nouvelle
+        ['22/07/2026', 'VIREMENT INCONNU', '', '10,00'], // non reconnu -> à vérifier
+        ['pas une date', 'INCONNU', '10,00', ''], // ignorée
+      ],
+      mapping: { date: 0, label: 1, debit: 2, credit: 3 },
+      dateOrder: 'dmy',
+      decimalSeparator: ',',
+      accountId: ACCOUNT,
+      existingOperations: [
+        {
+          id: 'existing-1',
+          accountId: ACCOUNT,
+          date: '2026-07-12',
+          amount: -45.9,
+          normalizedLabel: 'intermarche',
+          externalId: null,
+        },
+      ],
+      categorization: context,
+    })
+
+    const recap = summarizeImportRecap(rows)
+    expect(recap).toEqual({ total: 4, nouvelles: 1, doublons: 1, aVerifier: 1, ignorees: 1 })
+    // La somme des quatre catégories couvre exactement toutes les lignes.
+    expect(recap.nouvelles + recap.doublons + recap.aVerifier + recap.ignorees).toBe(recap.total)
   })
 })
