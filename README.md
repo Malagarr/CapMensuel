@@ -25,19 +25,24 @@ Le développement suit les 20 étapes définies dans le cahier des charges.
 | 9-10 | Import CSV et Excel | ✅ terminé (assistant en 5 écrans, CSV et XLSX) |
 | 11 | Détection des doublons | ✅ terminé |
 | 12 | Moteur de catégorisation | ✅ terminé |
-| 13 | Tableau de bord | ⏳ à venir |
-| 14 | Budgets par catégorie | ⏳ à venir |
-| 15 | Prévisions de fin de mois | ⏳ à venir |
-| 16 | Statistiques | ⏳ à venir |
+| 13 | Tableau de bord | ✅ terminé (vérifié en direct contre Supabase) |
+| 14 | Budgets par catégorie | ✅ terminé |
+| 15 | Prévisions de fin de mois | ✅ terminé |
+| 16 | Statistiques | ✅ terminé |
 | 17 | PWA | ⏳ à venir |
 | 18 | Sécurité et RGPD | ⏳ à venir |
-| 19 | Tests | 🔶 en cours (133 tests unitaires) |
+| 19 | Tests | 🔶 en cours (152 tests unitaires) |
 | 20 | Déploiement | ⏳ à venir |
 
 La navigation complète du §23 (barre latérale sur ordinateur, barre du bas sur
-mobile avec bouton « Ajouter » central) est prévue à l'étape 13, une fois le
-tableau de bord en place. En attendant, l'en-tête horizontal actuel reste
-volontairement minimal.
+mobile avec bouton « Ajouter » central) est en place depuis l'étape 13.
+
+Le tableau de bord (reste à vivre, reste disponible, prévision de fin de mois)
+a été vérifié en direct contre une base Supabase réelle avec le jeu de
+données du §4 du cahier des charges (revenus 3 500 €, charges fixes 1 800 €,
+dépenses variables 700 €, dépenses exceptionnelles 200 €, épargne 300 €) :
+les valeurs affichées correspondent exactement à l'exemple attendu
+(reste à vivre 1 700 €, reste disponible 500 €).
 
 ---
 
