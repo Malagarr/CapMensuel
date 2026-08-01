@@ -1,0 +1,44 @@
+# Dépendances
+/node_modules
+/.pnp
+.pnp.*
+
+# Build Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# Tests
+/coverage
+
+# Variables d'environnement — NE JAMAIS COMMITER
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Réglages Claude Code propres à la machine (chemins locaux, autorisations).
+# .claude/launch.json est en revanche partagé : il décrit le serveur de dev.
+.claude/settings.local.json
+
+# Supabase local
+/supabase/.temp
+/supabase/.branches
+
+# Vercel
+.vercel
+
+# Système
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Fichiers bancaires — aucun relevé réel ne doit se retrouver dans le dépôt
+/relevés/
+/releves/
+*.ofx
+*.qif

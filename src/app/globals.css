@@ -1,0 +1,202 @@
+@import 'tailwindcss';
+
+/* --------------------------------------------------------------------------
+   Mode sombre
+   Tailwind v4 utilise par défaut la préférence système. Ici on pilote le thème
+   avec une classe « dark » posée sur <html>, ce qui permet à l'utilisateur de
+   choisir explicitement clair / sombre / automatique.
+   -------------------------------------------------------------------------- */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --------------------------------------------------------------------------
+   Jetons de design (design tokens)
+   Toutes les couleurs sont exprimées en OKLCH : les variations de luminosité
+   restent perceptuellement régulières, ce qui facilite le respect des
+   contrastes d'accessibilité.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Surfaces */
+  --app-background: oklch(0.985 0.004 240);
+  --app-foreground: oklch(0.21 0.02 250);
+  --app-card: oklch(1 0 0);
+  --app-card-foreground: oklch(0.21 0.02 250);
+  --app-muted: oklch(0.96 0.006 250);
+  --app-muted-foreground: oklch(0.51 0.02 252);
+  --app-border: oklch(0.91 0.008 250);
+  --app-input: oklch(0.91 0.008 250);
+  --app-ring: oklch(0.58 0.13 195);
+
+  /* Couleur principale : un bleu-vert calme, ni « banque » ni « tableur » */
+  --app-primary: oklch(0.55 0.115 197);
+  --app-primary-foreground: oklch(0.99 0.005 190);
+  --app-primary-soft: oklch(0.95 0.03 195);
+
+  /* Couleurs sémantiques financières */
+  --app-success: oklch(0.58 0.13 152);
+  --app-success-soft: oklch(0.95 0.04 152);
+  --app-warning: oklch(0.68 0.15 62);
+  --app-warning-soft: oklch(0.96 0.05 75);
+  --app-danger: oklch(0.56 0.19 25);
+  --app-danger-soft: oklch(0.95 0.03 25);
+  --app-info: oklch(0.56 0.13 258);
+  --app-info-soft: oklch(0.95 0.03 258);
+
+  /* Montants : entrées d'argent / sorties d'argent */
+  --app-income: oklch(0.52 0.13 152);
+  --app-expense: oklch(0.52 0.17 25);
+
+  --app-radius: 0.875rem;
+}
+
+.dark {
+  --app-background: oklch(0.17 0.015 252);
+  --app-foreground: oklch(0.95 0.006 250);
+  --app-card: oklch(0.22 0.018 252);
+  --app-card-foreground: oklch(0.95 0.006 250);
+  --app-muted: oklch(0.26 0.018 252);
+  --app-muted-foreground: oklch(0.72 0.015 252);
+  --app-border: oklch(0.31 0.018 252);
+  --app-input: oklch(0.31 0.018 252);
+  --app-ring: oklch(0.68 0.12 195);
+
+  --app-primary: oklch(0.72 0.115 195);
+  --app-primary-foreground: oklch(0.19 0.03 200);
+  --app-primary-soft: oklch(0.3 0.05 197);
+
+  --app-success: oklch(0.72 0.14 152);
+  --app-success-soft: oklch(0.3 0.05 152);
+  --app-warning: oklch(0.78 0.14 70);
+  --app-warning-soft: oklch(0.32 0.05 70);
+  --app-danger: oklch(0.68 0.17 25);
+  --app-danger-soft: oklch(0.31 0.06 25);
+  --app-info: oklch(0.7 0.12 258);
+  --app-info-soft: oklch(0.3 0.05 258);
+
+  --app-income: oklch(0.75 0.14 152);
+  --app-expense: oklch(0.7 0.16 25);
+}
+
+/* --------------------------------------------------------------------------
+   Exposition des jetons à Tailwind
+   « @theme inline » rend les variables utilisables sous forme d'utilitaires :
+   bg-background, text-muted-foreground, border-border, etc.
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--app-background);
+  --color-foreground: var(--app-foreground);
+  --color-card: var(--app-card);
+  --color-card-foreground: var(--app-card-foreground);
+  --color-muted: var(--app-muted);
+  --color-muted-foreground: var(--app-muted-foreground);
+  --color-border: var(--app-border);
+  --color-input: var(--app-input);
+  --color-ring: var(--app-ring);
+
+  --color-primary: var(--app-primary);
+  --color-primary-foreground: var(--app-primary-foreground);
+  --color-primary-soft: var(--app-primary-soft);
+
+  --color-success: var(--app-success);
+  --color-success-soft: var(--app-success-soft);
+  --color-warning: var(--app-warning);
+  --color-warning-soft: var(--app-warning-soft);
+  --color-danger: var(--app-danger);
+  --color-danger-soft: var(--app-danger-soft);
+  --color-info: var(--app-info);
+  --color-info-soft: var(--app-info-soft);
+
+  --color-income: var(--app-income);
+  --color-expense: var(--app-expense);
+
+  --radius-app: var(--app-radius);
+
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, sans-serif;
+
+  /* Animations discrètes : jamais de mouvement gratuit sur des chiffres. */
+  --animate-fade-in: fade-in 0.25s ease-out;
+  --animate-slide-up: slide-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Styles de base
+   -------------------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--app-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* Évite le « saut » de mise en page quand une barre de défilement apparaît. */
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--app-background);
+    color: var(--app-foreground);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    /* Marge basse sur mobile pour ne pas masquer le contenu sous la barre
+       de navigation fixe, et prise en compte de l'encoche iOS. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Anneau de focus visible au clavier : indispensable à l'accessibilité. */
+  :focus-visible {
+    outline: 2px solid var(--app-ring);
+    outline-offset: 2px;
+  }
+
+  /* Les montants s'alignent verticalement grâce aux chiffres tabulaires. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Respecte le réglage « réduire les animations » du système. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Contenu réservé aux lecteurs d'écran. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
