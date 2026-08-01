@@ -31,8 +31,8 @@ Le développement suit les 20 étapes définies dans le cahier des charges.
 | 16 | Statistiques | ✅ terminé |
 | 17 | PWA | ✅ terminé |
 | 18 | Sécurité et RGPD | ✅ terminé |
-| 19 | Tests | 🔶 en cours (152 tests unitaires) |
-| 20 | Déploiement | ⏳ à venir |
+| 19 | Tests, données de démo | ✅ terminé (174 tests unitaires, `supabase/seed-demo.sql`) |
+| 20 | Documentation et déploiement | ✅ terminé (guide de déploiement Vercel ci-dessous) |
 
 La navigation complète du §23 (barre latérale sur ordinateur, barre du bas sur
 mobile avec bouton « Ajouter » central) est en place depuis l'étape 13.
@@ -208,6 +208,18 @@ Ouvrez [http://localhost:3000](http://localhost:3000).
 Tant que `.env.local` n'est pas rempli, l'application affiche une page
 « Configuration requise » qui rappelle ces étapes, plutôt qu'une erreur.
 
+### 7. (Optionnel) Charger des données de démonstration
+
+`supabase/seed-demo.sql` remplit un foyer existant avec trois mois
+d'opérations réalistes (salaire, loyer, courses, sorties, épargne...), pour
+voir un tableau de bord parlant sans tout saisir à la main.
+
+Ouvrez le fichier, remplacez `target_owner_email` par l'e-mail du compte
+concerné, puis collez-le dans le SQL Editor Supabase et exécutez-le. Tout est
+isolé dans un compte bancaire dédié (« Compte courant (démo) »), sans toucher
+au reste : le script peut être relancé à volonté, il repart d'un compte de
+démo vide à chaque fois. La fin du fichier indique comment tout supprimer.
+
 ---
 
 ## Commandes disponibles
@@ -234,11 +246,16 @@ Tant que `.env.local` n'est pas rempli, l'application affiche une page
 │   ├── app/
 │   │   ├── (auth)/              Connexion, inscription, mot de passe
 │   │   ├── (app)/               Pages protégées : tableau de bord, comptes,
-│   │   │                        opérations, récurrentes, catégories, foyer, import
+│   │   │                        opérations, récurrentes, catégories, budgets,
+│   │   │                        statistiques, foyer, import, confidentialité
+│   │   ├── api/export-donnees/  Export JSON des données (§18)
 │   │   ├── auth/                Routes techniques : confirmation, callback
 │   │   ├── bienvenue/           Création ou adhésion à un foyer
 │   │   ├── rejoindre/[code]/    Arrivée sur un lien d'invitation
 │   │   ├── configuration-requise/  Page de premier lancement
+│   │   ├── offline/             Page de secours du service worker (§17)
+│   │   ├── icon.tsx, apple-icon.tsx, icons/  Icônes générées à la volée
+│   │   ├── manifest.ts          Manifeste PWA (§17)
 │   │   ├── layout.tsx           Layout racine, thème, polices
 │   │   └── globals.css          Jetons de design, mode clair et sombre
 │   ├── components/
@@ -248,16 +265,21 @@ Tant que `.env.local` n'est pas rempli, l'application affiche une page
 │   │   ├── banking/               Moteur d'analyse bancaire, pur et testé :
 │   │   │                          normalisation des libellés, dates, montants,
 │   │   │                          détection de colonnes, catégorisation, doublons
-│   │   ├── supabase/             Clients navigateur, serveur et middleware
+│   │   ├── supabase/             Clients navigateur, serveur, middleware et
+│   │   │                         admin (service_role, §18)
 │   │   ├── validation/           Schémas Zod
+│   │   ├── dashboard.ts          Calculs du tableau de bord (§13-15), pur et testé
 │   │   ├── env.ts                Lecture validée de la configuration
 │   │   ├── format.ts             Montants, dates, pourcentages (français)
 │   │   └── utils.ts              Utilitaires transverses
 │   ├── types/
 │   │   └── database.ts          Types reflétant le schéma SQL
 │   └── middleware.ts            Rafraîchit la session, protège les routes
+├── public/
+│   └── sw.js                    Service worker (§17)
 └── supabase/
-    └── migrations/              Scripts SQL, à exécuter dans l'ordre
+    ├── migrations/              Scripts SQL, à exécuter dans l'ordre
+    └── seed-demo.sql            Données de démonstration, à exécuter à la main
 ```
 
 ---
@@ -289,6 +311,36 @@ l'appareil.
 mois/jour) et le séparateur décimal sont déduits en observant l'ensemble d'une
 colonne, pas une valeur isolée. Le format d'une banque, une fois confirmé, est
 mémorisé pour les imports suivants.
+
+---
+
+## Déploiement (§20)
+
+Aucune étape n'est spécifique à ce projet au-delà d'un déploiement Next.js
+standard sur Vercel :
+
+1. **Importez le dépôt** sur [vercel.com](https://vercel.com) (bouton
+   « Add New… › Project », en choisissant `Malagarr/CapMensuel`). Le
+   framework Next.js est détecté automatiquement.
+2. **Renseignez les variables d'environnement** (Project Settings ›
+   Environment Variables), les mêmes que dans `.env.local` :
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY` (nécessaire à la suppression de compte du
+   §18) et `NEXT_PUBLIC_SITE_URL` (l'URL `https://…` que Vercel attribuera,
+   à mettre à jour après le premier déploiement si vous ne connaissez pas
+   encore le domaine final).
+3. **Mettez à jour Supabase** (Authentication › URL Configuration) : ajoutez
+   l'URL de production à « Site URL » et « Redirect URLs », sinon les liens
+   envoyés par e-mail (confirmation, réinitialisation de mot de passe)
+   redirigeront vers `localhost`.
+4. **Vérifiez la PWA après le premier déploiement** : `/manifest.webmanifest`
+   doit répondre, et un navigateur mobile doit proposer « Ajouter à l'écran
+   d'accueil ». Le service worker (§17) n'a d'effet qu'en HTTPS — Vercel le
+   fournit par défaut, aucune configuration supplémentaire n'est nécessaire.
+
+Le build échoue volontairement si une erreur TypeScript ou ESLint subsiste
+(voir `next.config.mjs`) : un déploiement qui aboutit garantit donc que ces
+deux vérifications sont passées.
 
 ---
 
