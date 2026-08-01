@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useCallback, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeftRight, Pencil, Plus, Receipt, Trash2 } from 'lucide-react'
 
 import {
@@ -70,10 +71,22 @@ export function OperationsView({
   canWrite: boolean
   totals: { income: number; expense: number; currency: string }
 }) {
-  const [panel, setPanel] = useState<'new' | string | null>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Le bouton « Ajouter » de la barre de navigation mobile ouvre directement
+  // le formulaire, via ?nouveau=1 (§23). Lazy-init : on ne lit l'URL qu'une
+  // fois, à l'ouverture de la page — un revisitage ne doit pas rouvrir le panneau.
+  const [panel, setPanel] = useState<'new' | string | null>(() =>
+    searchParams.get('nouveau') === '1' ? 'new' : null,
+  )
   const [deleteState, deleteAction] = useActionState(deleteTransactionAction, idleFormState)
 
-  const closePanel = useCallback(() => setPanel(null), [])
+  const closePanel = useCallback(() => {
+    setPanel(null)
+    // Nettoie l'URL pour qu'un rechargement ne rouvre pas le panneau.
+    if (searchParams.get('nouveau')) router.replace('/operations')
+  }, [router, searchParams])
 
   const editing =
     panel && panel !== 'new' ? transactions.find((t) => t.id === panel) : undefined

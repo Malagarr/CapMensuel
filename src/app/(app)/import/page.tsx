@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
-import { ImportWizard, type ImportAccountOption, type ImportCategoryOption } from '@/app/(app)/import/import-wizard'
+import { ImportWizard } from '@/app/(app)/import/import-wizard'
 import { Alert } from '@/components/ui/alert'
 import { requireActiveHousehold } from '@/lib/household'
 import { canWrite } from '@/lib/permissions'
@@ -18,63 +18,44 @@ export default async function ImportPage() {
   if (!user) redirect('/connexion')
 
   const { household, role } = await requireActiveHousehold(user)
-  const writable = canWrite(role)
 
-  const [{ data: accounts }, { data: categories }] = await Promise.all([
-    supabase
-      .from('bank_accounts')
-      .select('id, name, bank_name, icon, color')
-      .eq('household_id', household.id)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true }),
-    supabase
-      .from('categories')
-      .select('id, name, category_type, parent_category_id, is_active')
-      .eq('household_id', household.id)
-      .eq('is_active', true),
-  ])
+  if (!canWrite(role)) {
+    return (
+      <div className="space-y-5">
+        <h1 className="text-2xl font-bold tracking-tight">Importer un relevé</h1>
+        <Alert tone="info">
+          Votre rôle est « lecture seule » : vous ne pouvez pas importer de relevé bancaire.
+        </Alert>
+      </div>
+    )
+  }
 
-  const categoryOptions: ImportCategoryOption[] = (categories ?? []).map((category) => ({
-    id: category.id,
-    name: category.name,
-    categoryType: category.category_type,
-    parentName: category.parent_category_id
-      ? (categories ?? []).find((c) => c.id === category.parent_category_id)?.name ?? null
-      : null,
-  }))
-
-  const accountOptions: ImportAccountOption[] = (accounts ?? []).map((account) => ({
-    id: account.id,
-    name: account.name,
-    bankName: account.bank_name,
-    icon: account.icon,
-    color: account.color,
-  }))
+  const { data: accounts } = await supabase
+    .from('bank_accounts')
+    .select('id, name, currency')
+    .eq('household_id', household.id)
+    .eq('is_active', true)
+    .order('sort_order')
+    .order('name')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Importer un relevé</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Déposez un export de votre banque (CSV ou Excel) : il est analysé entièrement
-          dans votre navigateur, jamais envoyé à un serveur.
+          Déposez un fichier CSV ou Excel : il est analysé dans votre navigateur et n’est
+          jamais envoyé sur nos serveurs. Vous validez chaque opération avant son
+          enregistrement.
         </p>
       </div>
 
-      {!writable && (
-        <Alert tone="info">
-          Votre rôle est « lecture seule » : vous ne pouvez pas importer de relevé.
+      {!accounts || accounts.length === 0 ? (
+        <Alert tone="warning" title="Créez d’abord un compte">
+          Un relevé s’importe toujours sur un compte bancaire existant.
         </Alert>
+      ) : (
+        <ImportWizard accounts={accounts} />
       )}
-
-      {writable &&
-        (accountOptions.length === 0 ? (
-          <Alert tone="info">
-            Créez d’abord un compte bancaire dans « Comptes » avant d’importer un relevé.
-          </Alert>
-        ) : (
-          <ImportWizard accounts={accountOptions} categories={categoryOptions} />
-        ))}
     </div>
   )
 }

@@ -1,107 +1,101 @@
 'use client'
 
 import { useActionState, useMemo, useState } from 'react'
-import { AlertTriangle, Check, Copy, HelpCircle } from 'lucide-react'
+import {
+  AlertTriangle,
+  Check,
+  CircleHelp,
+  Copy,
+  FileWarning,
+  ThumbsUp,
+} from 'lucide-react'
 
-import type { ImportCategoryOption } from '@/app/(app)/import/import-wizard'
+import { commitImportAction, type ImportContext } from '@/lib/actions/import'
 import { Alert } from '@/components/ui/alert'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
-import { Field, Input, Select } from '@/components/ui/field'
 import { SubmitButton } from '@/components/ui/submit-button'
-import { commitImportAction } from '@/lib/actions/import'
-import { expectedCategoryKinds } from '@/lib/banking/categorize'
-import type { ColumnMapping } from '@/lib/banking/detect-columns'
-import {
-  summarizeImportRecap,
-  type ImportRowPreview,
-  type RowStatus,
-} from '@/lib/banking/import-pipeline'
-import type { DateOrder } from '@/lib/banking/parse-date'
-import type { DecimalSeparator } from '@/lib/banking/parse-amount'
-import { categoryKindLabels } from '@/lib/categories'
-import { formatDate, formatMoney } from '@/lib/format'
+import { categoryKindOrder, categoryKindLabels } from '@/lib/categories'
 import { idleFormState } from '@/lib/forms'
-import { cn } from '@/lib/utils'
+import { formatDate, formatMoney } from '@/lib/format'
+import type { analyzeSheet } from '@/lib/banking/import-pipeline'
+import { buildImportPreview, summarizePreview, type ImportRowPreview, type RowStatus } from '@/lib/banking/import-pipeline'
 import type { SupportedFileType } from '@/lib/banking/read-file'
+import { cn } from '@/lib/utils'
 
-/** Classes de texte statiques : Tailwind ne peut pas composer une classe dynamique. */
-const TONE_TEXT_CLASS: Partial<Record<BadgeTone, string>> = {
-  success: 'text-success',
-  danger: 'text-danger',
-  warning: 'text-warning',
-  neutral: 'text-muted-foreground',
+type SheetAnalysis = ReturnType<typeof analyzeSheet>
+
+const statusMeta: Record<RowStatus, { label: string; tone: BadgeTone; icon: typeof Check }> = {
+  recognized: { label: 'Reconnue', tone: 'success', icon: Check },
+  suggested: { label: 'À confirmer', tone: 'warning', icon: ThumbsUp },
+  unrecognized: { label: 'Non reconnue', tone: 'neutral', icon: CircleHelp },
+  duplicate: { label: 'Doublon', tone: 'danger', icon: Copy },
+  similar: { label: 'À vérifier', tone: 'warning', icon: AlertTriangle },
+  invalid: { label: 'Ignorée', tone: 'neutral', icon: FileWarning },
 }
 
-const STATUS_CONFIG: Record<RowStatus, { label: string; tone: BadgeTone }> = {
-  recognized: { label: 'Reconnue', tone: 'success' },
-  suggested: { label: 'Proposée', tone: 'primary' },
-  unrecognized: { label: 'À vérifier', tone: 'warning' },
-  duplicate: { label: 'Doublon', tone: 'danger' },
-  similar: { label: 'À vérifier', tone: 'warning' },
-  invalid: { label: 'Ignorée', tone: 'neutral' },
-}
-
-export function ImportPreviewStep({
-  initialRows,
-  categories,
-  accountId,
-  accountLabel,
+export function PreviewStep({
   fileName,
   fileType,
-  headerSignature,
-  mapping,
-  dateOrder,
-  decimalSeparator,
-  rememberedProfileName,
-  onStartOver,
+  analysis,
+  context,
+  accountId,
+  currency,
+  onRestart,
 }: {
-  initialRows: ImportRowPreview[]
-  categories: ImportCategoryOption[]
-  accountId: string
-  accountLabel: string
   fileName: string
   fileType: SupportedFileType
-  headerSignature: string
-  mapping: ColumnMapping
-  dateOrder: DateOrder
-  decimalSeparator: DecimalSeparator
-  rememberedProfileName: string | null
-  onStartOver: () => void
+  analysis: SheetAnalysis
+  context: ImportContext
+  accountId: string
+  currency: string
+  onRestart: () => void
 }) {
-  const [rows, setRows] = useState(initialRows)
-  const [saveProfile, setSaveProfile] = useState(rememberedProfileName === null)
-  const [commitState, commitAction] = useActionState(commitImportAction, idleFormState)
-
-  const recap = useMemo(() => summarizeImportRecap(rows), [rows])
-  const includedRows = useMemo(() => rows.filter((row) => row.included), [rows])
-
-  const rowsPayload = useMemo(
+  // L'aperçu est calculé une fois, à l'ouverture de cette étape : c'est un
+  // calcul pur et déterministe, inutile de le refaire à chaque rendu.
+  const initialRows = useMemo(
     () =>
-      includedRows
-        .filter((row) => row.parsedDate !== null && row.parsedAmount !== null && row.fingerprint !== null)
-        .map((row) => ({
-          rowIndex: row.rowIndex,
-          date: row.parsedDate,
-          rawLabel: row.rawLabel,
-          normalizedLabel: row.normalizedLabel,
-          merchant: row.merchant,
-          amount: row.parsedAmount,
-          categoryId: row.selectedCategoryId ?? '',
-          fingerprint: row.fingerprint,
-          isDuplicate: row.status === 'duplicate',
-          rememberMerchant: Boolean(row.selectedCategoryId) && row.merchant !== '',
-        })),
-    [includedRows],
+      buildImportPreview({
+        dataRows: analysis.dataRows,
+        mapping: analysis.mapping,
+        dateOrder: analysis.dateOrder,
+        decimalSeparator: analysis.decimalSeparator,
+        accountId,
+        existingOperations: context.existingOperations,
+        categorization: context.categorization,
+      }),
+    [analysis, accountId, context],
   )
 
-  function toggleIncluded(rowIndex: number) {
+  const [rows, setRows] = useState(initialRows)
+  // Coché par défaut seulement si la détection du format était certaine :
+  // sur un format ambigu, mieux vaut laisser l'utilisateur décider.
+  const [saveProfile, setSaveProfile] = useState(analysis.dateOrderCertain)
+  // Préremplie pour qu'un envoi sans y toucher reste valide : le nom est
+  // requis dès lors que la case « mémoriser » est cochée.
+  const [profileName, setProfileName] = useState(() =>
+    fileName.replace(/\.[a-zA-Z0-9]+$/, '').slice(0, 80),
+  )
+
+  const [state, formAction] = useActionState(commitImportAction, idleFormState)
+
+  const summary = useMemo(() => summarizePreview(rows), [rows])
+  const activeCategories = context.categorization.categories.filter((c) => c.isActive)
+
+  function updateRow(rowIndex: number, patch: Partial<ImportRowPreview>) {
     setRows((current) =>
-      current.map((row) => (row.rowIndex === rowIndex ? { ...row, included: !row.included } : row)),
+      current.map((row) => (row.rowIndex === rowIndex ? { ...row, ...patch } : row)),
     )
   }
 
+  function toggleIncluded(rowIndex: number, included: boolean) {
+    updateRow(rowIndex, { included })
+  }
+
+  // Un choix différent de la suggestion vaut correction de l'utilisateur :
+  // la comparaison avec suggestedCategoryId, au moment de construire le
+  // payload plus bas, décide alors de mémoriser ce commerçant (§10).
   function changeCategory(rowIndex: number, categoryId: string) {
     setRows((current) =>
       current.map((row) =>
@@ -110,14 +104,39 @@ export function ImportPreviewStep({
     )
   }
 
-  const hasDebitCredit = mapping.debit !== undefined && mapping.credit !== undefined
+  // Les lignes réellement importables : ni invalides, ni décochées par l'utilisateur.
+  const includedRows = rows.filter((row) => row.included && row.status !== 'invalid')
 
-  if (commitState.status === 'success') {
+  const payload = includedRows.map((row) => ({
+    rowIndex: row.rowIndex,
+    date: row.parsedDate!,
+    rawLabel: row.rawLabel,
+    normalizedLabel: row.normalizedLabel,
+    merchant: row.merchant,
+    amount: row.parsedAmount!,
+    categoryId: row.selectedCategoryId ?? '',
+    fingerprint: row.fingerprint!,
+    isDuplicate: row.status === 'duplicate' || row.status === 'similar',
+    rememberMerchant:
+      row.selectedCategoryId !== null && row.selectedCategoryId !== row.suggestedCategoryId,
+  }))
+
+  const columnMappingJson = JSON.stringify(analysis.mapping)
+
+  if (state.status === 'success') {
     return (
       <Card>
-        <CardBody className="space-y-4">
-          <Alert tone="success">{commitState.message}</Alert>
-          <Button onClick={onStartOver}>Importer un autre fichier</Button>
+        <CardBody className="py-10 text-center">
+          <span
+            className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-success-soft text-success"
+            aria-hidden="true"
+          >
+            <Check className="size-6" />
+          </span>
+          <p className="font-medium">{state.message}</p>
+          <div className="mt-5 flex justify-center gap-2">
+            <Button onClick={onRestart}>Importer un autre fichier</Button>
+          </div>
         </CardBody>
       </Card>
     )
@@ -125,104 +144,105 @@ export function ImportPreviewStep({
 
   return (
     <div className="space-y-4">
+      {state.status === 'error' && state.message && <Alert tone="danger">{state.message}</Alert>}
+
       <Card>
         <CardHeader
           title="Aperçu avant validation"
-          description={`${fileName} — compte « ${accountLabel} »`}
+          description={`${fileName} · ${rows.length} ligne${rows.length > 1 ? 's' : ''} détectée${rows.length > 1 ? 's' : ''}`}
         />
-        <CardBody className="space-y-4">
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <RecapItem label="Total" value={recap.total} />
-            <RecapItem label="Nouvelles" value={recap.nouvelles} tone="success" />
-            <RecapItem label="Doublons" value={recap.doublons} tone="danger" />
-            <RecapItem label="À vérifier" value={recap.aVerifier} tone="warning" />
-            <RecapItem label="Ignorées" value={recap.ignorees} tone="neutral" />
-          </dl>
-
-          {recap.ignorees > 0 && (
-            <Alert tone="warning">
-              {recap.ignorees} ligne{recap.ignorees > 1 ? 's' : ''} n’a pas pu être analysée
-              (date ou montant illisible) et ne sera pas importée.
-            </Alert>
+        <CardBody className="pt-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <SummaryTile label="Total" value={summary.total} />
+            <SummaryTile label="Reconnues" value={summary.recognized} tone="success" />
+            <SummaryTile label="À confirmer" value={summary.suggested + summary.unrecognized} tone="warning" />
+            <SummaryTile label="Doublons" value={summary.duplicates + summary.similar} tone="danger" />
+          </div>
+          {summary.invalid > 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {summary.invalid} ligne{summary.invalid > 1 ? 's' : ''} illisible
+              {summary.invalid > 1 ? 's' : ''} (date ou montant incompréhensible) ne sera
+              {summary.invalid > 1 ? 'ont' : ''} pas importée{summary.invalid > 1 ? 's' : ''}.
+            </p>
           )}
         </CardBody>
       </Card>
 
       <Card>
-        <CardBody className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted text-xs">
-              <tr>
-                <th className="w-10 px-3 py-2"></th>
-                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">Date</th>
-                <th className="px-3 py-2 text-left font-medium">Libellé</th>
-                <th className="whitespace-nowrap px-3 py-2 text-right font-medium">Montant</th>
-                <th className="px-3 py-2 text-left font-medium">Catégorie</th>
-                <th className="px-3 py-2 text-left font-medium">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row) => (
-                <PreviewRow
-                  key={row.rowIndex}
-                  row={row}
-                  categories={categories}
-                  onToggleIncluded={() => toggleIncluded(row.rowIndex)}
-                  onChangeCategory={(categoryId) => changeCategory(row.rowIndex, categoryId)}
-                />
-              ))}
-            </tbody>
-          </table>
+        <CardBody className="max-h-[32rem] overflow-y-auto p-0">
+          <ul className="divide-y divide-border">
+            {rows.map((row) => (
+              <PreviewRow
+                key={row.rowIndex}
+                row={row}
+                currency={currency}
+                categories={activeCategories}
+                onToggleIncluded={(included) => toggleIncluded(row.rowIndex, included)}
+                onChangeCategory={(categoryId) => changeCategory(row.rowIndex, categoryId)}
+              />
+            ))}
+          </ul>
         </CardBody>
       </Card>
 
       <Card>
-        <CardBody className="space-y-4">
-          {commitState.status === 'error' && commitState.message && (
-            <Alert tone="danger">{commitState.message}</Alert>
-          )}
-
-          <form action={commitAction} className="space-y-4">
+        <CardBody>
+          <form action={formAction} className="space-y-4">
             <input type="hidden" name="accountId" value={accountId} />
             <input type="hidden" name="fileName" value={fileName} />
             <input type="hidden" name="fileType" value={fileType} />
-            <input type="hidden" name="rowsJson" value={JSON.stringify(rowsPayload)} readOnly />
+            <input type="hidden" name="rowsJson" value={JSON.stringify(payload)} />
+            <input type="hidden" name="headerSignature" value={analysis.signature} />
+            <input type="hidden" name="columnMappingJson" value={columnMappingJson} />
+            <input type="hidden" name="dateFormat" value={analysis.dateOrder} />
+            <input type="hidden" name="decimalSeparator" value={analysis.decimalSeparator} />
+            <input
+              type="hidden"
+              name="hasDebitCredit"
+              value={analysis.mapping.debit !== undefined || analysis.mapping.credit !== undefined ? 'on' : ''}
+            />
 
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-start gap-2.5 rounded-xl border border-border p-3">
               <input
                 type="checkbox"
                 name="saveProfile"
                 checked={saveProfile}
                 onChange={(event) => setSaveProfile(event.target.checked)}
-                className="size-4 rounded border-input"
+                className="mt-0.5 size-4 rounded border-input"
               />
-              Mémoriser le format de cette banque pour les prochains imports
+              <span className="text-sm">
+                <span className="font-medium">Mémoriser ce format de fichier</span>
+                <span className="mt-0.5 block text-muted-foreground">
+                  Les prochains relevés de cette banque seront reconnus automatiquement.
+                </span>
+              </span>
             </label>
 
             {saveProfile && (
-              <>
-                <input type="hidden" name="headerSignature" value={headerSignature} />
-                <input type="hidden" name="columnMappingJson" value={JSON.stringify(mapping)} readOnly />
-                <input type="hidden" name="dateFormat" value={dateOrder} />
-                <input type="hidden" name="decimalSeparator" value={decimalSeparator} />
-                <input type="hidden" name="hasDebitCredit" value={hasDebitCredit ? 'on' : ''} />
-
-                <Field label="Nom de ce format" htmlFor="profile-name" required>
-                  <Input
-                    id="profile-name"
-                    name="profileName"
-                    required
-                    maxLength={80}
-                    defaultValue={rememberedProfileName ?? ''}
-                    placeholder="Ex. : Crédit Agricole — export CSV"
-                  />
-                </Field>
-              </>
+              <div>
+                <label htmlFor="profile-name" className="mb-1.5 block text-sm font-medium">
+                  Nom pour reconnaître cette banque
+                </label>
+                <input
+                  id="profile-name"
+                  name="profileName"
+                  value={profileName}
+                  onChange={(event) => setProfileName(event.target.value)}
+                  placeholder="Ex. Crédit Agricole"
+                  maxLength={80}
+                  className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm focus:border-ring"
+                />
+              </div>
             )}
 
-            <SubmitButton disabled={rowsPayload.length === 0}>
-              Valider l’import ({rowsPayload.length} opération{rowsPayload.length > 1 ? 's' : ''})
-            </SubmitButton>
+            <div className="flex flex-wrap items-center gap-3">
+              <SubmitButton size="lg" disabled={includedRows.length === 0}>
+                Importer {includedRows.length} opération{includedRows.length > 1 ? 's' : ''}
+              </SubmitButton>
+              <Button type="button" variant="ghost" onClick={onRestart}>
+                Annuler
+              </Button>
+            </div>
           </form>
         </CardBody>
       </Card>
@@ -230,112 +250,108 @@ export function ImportPreviewStep({
   )
 }
 
-function RecapItem({
+function SummaryTile({
   label,
   value,
   tone,
 }: {
   label: string
   value: number
-  tone?: BadgeTone
+  tone?: 'success' | 'warning' | 'danger'
 }) {
   return (
-    <div className="rounded-lg border border-border p-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn('mt-0.5 text-xl font-bold', tone && TONE_TEXT_CLASS[tone])}>{value}</dd>
+    <div className="rounded-xl border border-border p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          'tabular text-xl font-bold',
+          tone === 'success' && 'text-success',
+          tone === 'warning' && 'text-warning',
+          tone === 'danger' && 'text-danger',
+        )}
+      >
+        {value}
+      </p>
     </div>
   )
 }
 
 function PreviewRow({
   row,
+  currency,
   categories,
   onToggleIncluded,
   onChangeCategory,
 }: {
   row: ImportRowPreview
-  categories: ImportCategoryOption[]
-  onToggleIncluded: () => void
+  currency: string
+  categories: { id: string; name: string; categoryType: string }[]
+  onToggleIncluded: (included: boolean) => void
   onChangeCategory: (categoryId: string) => void
 }) {
-  const status = STATUS_CONFIG[row.status]
-  const canPickCategory = row.status !== 'invalid'
-  const relevantKinds = canPickCategory ? expectedCategoryKinds(row.parsedAmount ?? 0) : []
+  const meta = statusMeta[row.status]
+  const Icon = meta.icon
 
   return (
-    <tr className={row.status === 'invalid' ? 'opacity-50' : undefined}>
-      <td className="px-3 py-2 align-top">
-        {row.status !== 'invalid' && (
-          <input
-            type="checkbox"
-            checked={row.included}
-            onChange={onToggleIncluded}
-            aria-label={row.included ? 'Exclure cette ligne' : 'Inclure cette ligne'}
-            className="size-4 rounded border-input"
-          />
-        )}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 align-top">
-        {row.parsedDate ? formatDate(row.parsedDate) : row.rawDate || '—'}
-      </td>
-      <td className="max-w-64 px-3 py-2 align-top">
-        <p className="truncate" title={row.rawLabel}>
-          {row.rawLabel}
+    <li
+      className={cn(
+        'flex flex-wrap items-center gap-3 px-4 py-2.5',
+        row.status === 'invalid' && 'opacity-60',
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={row.included}
+        onChange={(event) => onToggleIncluded(event.target.checked)}
+        disabled={row.status === 'invalid'}
+        aria-label={`Inclure « ${row.rawLabel} » dans l’import`}
+        className="size-4 rounded border-input"
+      />
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{row.rawLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          {row.parsedDate ? formatDate(row.parsedDate) : row.rawDate || '—'}
+          {row.duplicateOfId && ' · ' + meta.label.toLowerCase()}
         </p>
-        {row.status === 'similar' && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-warning">
-            <HelpCircle className="size-3" aria-hidden="true" />
-            {row.categoryReason}
-          </p>
+      </div>
+
+      <span
+        className={cn(
+          'tabular whitespace-nowrap text-sm font-semibold',
+          row.parsedAmount !== null && row.parsedAmount < 0 ? 'text-expense' : 'text-income',
         )}
-        {row.status === 'duplicate' && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-danger">
-            <Copy className="size-3" aria-hidden="true" />
-            {row.categoryReason}
-          </p>
-        )}
-        {row.status === 'invalid' && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-            <AlertTriangle className="size-3" aria-hidden="true" />
-            {row.categoryReason}
-          </p>
-        )}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-right align-top tabular">
-        {row.parsedAmount !== null ? formatMoney(row.parsedAmount, undefined, { showSign: true }) : '—'}
-      </td>
-      <td className="min-w-40 px-3 py-2 align-top">
-        {canPickCategory ? (
-          <Select
-            aria-label="Catégorie"
-            value={row.selectedCategoryId ?? ''}
-            onChange={(event) => onChangeCategory(event.target.value)}
-            className="h-9 text-xs"
-          >
-            <option value="">Aucune — à vérifier</option>
-            {relevantKinds.map((kind) => {
-              const options = categories.filter((category) => category.categoryType === kind)
-              if (options.length === 0) return null
-              return (
-                <optgroup key={kind} label={categoryKindLabels[kind]}>
-                  {options.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.parentName ? `${category.parentName} › ${category.name}` : category.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )
-            })}
-          </Select>
-        ) : (
-          '—'
-        )}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 align-top">
-        <Badge tone={status.tone} icon={row.status === 'recognized' ? <Check className="size-3" aria-hidden="true" /> : undefined}>
-          {status.label}
-        </Badge>
-      </td>
-    </tr>
+      >
+        {row.parsedAmount !== null ? formatMoney(row.parsedAmount, currency, { showSign: true }) : row.rawAmount}
+      </span>
+
+      <Badge tone={meta.tone} icon={<Icon className="size-3" aria-hidden="true" />}>
+        {meta.label}
+      </Badge>
+
+      {row.status !== 'invalid' && (
+        <select
+          value={row.selectedCategoryId ?? ''}
+          onChange={(event) => onChangeCategory(event.target.value)}
+          aria-label={`Catégorie de « ${row.rawLabel} »`}
+          className="h-9 min-w-40 rounded-lg border border-input bg-card px-2 text-sm"
+        >
+          <option value="">Sans catégorie</option>
+          {categoryKindOrder.map((kind) => {
+            const options = categories.filter((c) => c.categoryType === kind)
+            if (options.length === 0) return null
+            return (
+              <optgroup key={kind} label={categoryKindLabels[kind]}>
+                {options.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </optgroup>
+            )
+          })}
+        </select>
+      )}
+    </li>
   )
 }
