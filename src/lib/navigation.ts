@@ -6,6 +6,7 @@ import {
   Landmark,
   PiggyBank,
   Receipt,
+  ShieldCheck,
   Tags,
   Upload,
   Users,
@@ -37,6 +38,7 @@ export const navItems: NavItem[] = [
   { href: '/categories', label: 'Catégories', icon: Tags },
   { href: '/statistiques', label: 'Statistiques', icon: BarChart3 },
   { href: '/foyer', label: 'Foyer', icon: Users },
+  { href: '/confidentialite', label: 'Confidentialité', icon: ShieldCheck },
 ]
 
 /**

@@ -29,8 +29,8 @@ Le développement suit les 20 étapes définies dans le cahier des charges.
 | 14 | Budgets par catégorie | ✅ terminé |
 | 15 | Prévisions de fin de mois | ✅ terminé |
 | 16 | Statistiques | ✅ terminé |
-| 17 | PWA | ⏳ à venir |
-| 18 | Sécurité et RGPD | ⏳ à venir |
+| 17 | PWA | ✅ terminé |
+| 18 | Sécurité et RGPD | ✅ terminé |
 | 19 | Tests | 🔶 en cours (152 tests unitaires) |
 | 20 | Déploiement | ⏳ à venir |
 
@@ -43,6 +43,22 @@ données du §4 du cahier des charges (revenus 3 500 €, charges fixes 1 800 �
 dépenses variables 700 €, dépenses exceptionnelles 200 €, épargne 300 €) :
 les valeurs affichées correspondent exactement à l'exemple attendu
 (reste à vivre 1 700 €, reste disponible 500 €).
+
+**PWA (§17)** : manifeste (`/manifest.webmanifest`), icônes générées à la
+volée (favicon, icône Apple, icônes 192/512 standards et « maskable »),
+service worker (`public/sw.js`, page de secours `/offline`) mis en cache
+uniquement pour les fichiers statiques versionnés de Next — jamais pour les
+pages ou les appels réseau, afin qu'aucune donnée financière périmée ne soit
+jamais servie hors ligne comme si elle était à jour.
+
+**Sécurité et RGPD (§18)** : Content-Security-Policy restrictive (`connect-src`
+limité à l'origine exacte du projet Supabase), page « Confidentialité »
+(`/confidentialite`) avec export complet des données au format JSON et
+suppression de compte (avec confirmation explicite). La suppression a été
+vérifiée par relecture du code et par test du chemin de validation (refus
+d'une confirmation incorrecte) ; le chemin de suppression réelle n'a
+volontairement pas été testé de bout en bout en production faute d'un compte
+jetable disponible — à tester avec un compte de test avant mise en production.
 
 ---
 

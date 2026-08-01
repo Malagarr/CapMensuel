@@ -12,8 +12,9 @@ export const config = {
      * Toutes les routes sauf :
      *  - _next/static et _next/image : ressources générées par Next.js
      *  - favicon, manifeste et service worker : servis avant toute session
+     *  - icônes (favicon dynamique, icône Apple, icônes du manifeste PWA)
      *  - fichiers d'images
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon$|apple-icon$|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }
