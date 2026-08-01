@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   confidenceLevel,
+  expectedCategoryKinds,
   matchesRule,
   suggestCategory,
   type CategorizationContext,
@@ -268,5 +269,22 @@ describe('confidenceLevel', () => {
     expect(confidenceLevel(70)).toBe('suggested')
     expect(confidenceLevel(69)).toBe('ask')
     expect(confidenceLevel(0)).toBe('ask')
+  })
+})
+
+describe('expectedCategoryKinds', () => {
+  it('limite un montant négatif aux natures de dépense, épargne et transfert', () => {
+    expect(expectedCategoryKinds(-45.9)).toEqual([
+      'fixed_expense',
+      'variable_expense',
+      'exceptional_expense',
+      'savings',
+      'transfer',
+    ])
+  })
+
+  it('limite un montant positif ou nul aux revenus, épargne et transfert', () => {
+    expect(expectedCategoryKinds(1250.45)).toEqual(['income', 'savings', 'transfer'])
+    expect(expectedCategoryKinds(0)).toEqual(['income', 'savings', 'transfer'])
   })
 })

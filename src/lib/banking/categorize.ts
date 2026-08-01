@@ -121,8 +121,14 @@ export function matchesRule(
   }
 }
 
-/** Nature attendue d'une catégorie selon le sens du montant. */
-function expectedKinds(amount: number): CategoryKind[] {
+/**
+ * Nature attendue d'une catégorie selon le sens du montant.
+ *
+ * Exportée (au-delà de son usage interne à suggestCategory) pour que
+ * l'interface d'import puisse limiter le sélecteur de catégorie aux natures
+ * plausibles pour le montant de la ligne, sans dupliquer la règle.
+ */
+export function expectedCategoryKinds(amount: number): CategoryKind[] {
   return amount >= 0
     ? ['income', 'savings', 'transfer']
     : ['fixed_expense', 'variable_expense', 'exceptional_expense', 'savings', 'transfer']
@@ -217,7 +223,7 @@ export function suggestCategory(
   }
 
   // --- 5. Dictionnaire de mots-clés ----------------------------------------
-  const allowedKinds = expectedKinds(operation.amount)
+  const allowedKinds = expectedCategoryKinds(operation.amount)
 
   for (const rule of KEYWORD_RULES) {
     // Le sens du montant doit correspondre : « CAF » est un revenu au crédit,

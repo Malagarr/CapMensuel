@@ -4,8 +4,10 @@ import {
   CalendarClock,
   LayoutDashboard,
   Landmark,
+  ListChecks,
   Receipt,
   Tags,
+  Upload,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -84,6 +86,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="hidden lg:inline">Comptes</span>
             </Link>
             <Link
+              href="/import"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Importer un relevé"
+            >
+              <Upload className="size-4" aria-hidden="true" />
+              <span className="sr-only">Importer un relevé</span>
+            </Link>
+            <Link
               href="/recurrentes"
               className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title="Opérations récurrentes"
@@ -98,6 +108,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               <Tags className="size-4" aria-hidden="true" />
               <span className="sr-only">Catégories</span>
+            </Link>
+            <Link
+              href="/regles"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Règles de catégorisation"
+            >
+              <ListChecks className="size-4" aria-hidden="true" />
+              <span className="sr-only">Règles de catégorisation</span>
             </Link>
             <Link
               href="/foyer"
